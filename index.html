@@ -1,1 +1,423 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cadA Store — Prototype</title>
+  <link rel="stylesheet" href="style.css?v=2" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">cadA Store</div>
+      <nav class="main-nav">
+        <input id="search" class="search" placeholder="Buscar jogos, categorias..." />
+        <div class="nav-actions">
+          <button id="loginBtn" class="btn-small">Entrar</button>
+          <button id="cartBtn" class="btn-small">Carrinho (<span id="cartCount">0</span>)</button>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container hero-content">
+        <h1>Jogos incríveis. Promoções diárias.</h1>
+        <p>Descubra lançamentos, ofertas e recomendações personalizadas para seu próximo jogo favorito.</p>
+        <div class="hero-cta">
+          <a href="#featured" class="btn">Explorar agora</a>
+          <a href="#ofertas" class="btn btn-transparent">Ver ofertas</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="featured" class="section container">
+      <h2>Em destaque</h2>
+      <div id="games" class="games-grid">
+        <!-- cards carregados por JS -->
+      </div>
+    </section>
+
+    <section id="ofertas" class="section container">
+      <div class="section-with-discount">
+        <div class="offers-column">
+          <h2>Ofertas</h2>
+          <div class="games-grid" id="deals">
+            <!-- ofertas (mesmo template) -->
+          </div>
+        </div>
+        <div class="discount-column">
+          <h2>Seu Desconto</h2>
+          <div class="achievements-discount">
+            <div id="discount-badge" class="discount-badge">0%</div>
+            <p id="discount-text">Complete conquistas para ganhar descontos em futuras compras!</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="trending" class="section container">
+      <h2>🔥 Mais Jogados Hoje</h2>
+      <div class="games-grid" id="trending-games">
+        <!-- mais jogados -->
+      </div>
+    </section>
+
+    <section id="recent" class="section container">
+      <h2>✨ Recém Lançados</h2>
+      <div class="games-grid" id="recent-games">
+        <!-- recém lançados -->
+      </div>
+    </section>
+
+    <section id="achievements" class="section container">
+      <h2>🏆 Suas Conquistas</h2>
+      <div id="achievements-list" class="achievements-grid">
+        <!-- conquistas carregadas por JS -->
+      </div>
+    </section>
+
+    <section id="categories" class="section container">
+      <h2>📂 Categorias</h2>
+      <div class="categories-nav" id="categories-nav">
+        <button class="category-btn active" data-category="all">Todos</button>
+        <button class="category-btn" data-category="action">Ação</button>
+        <button class="category-btn" data-category="rpg">RPG</button>
+        <button class="category-btn" data-category="strategy">Estratégia</button>
+        <button class="category-btn" data-category="puzzle">Puzzle</button>
+        <button class="category-btn" data-category="simulation">Simulação</button>
+      </div>
+      <div id="category-games" class="games-grid">
+        <!-- jogos por categoria -->
+      </div>
+    </section>
+  </main>
+
+  <template id="game-card">
+    <article class="card">
+      <div class="thumb-wrap"><img class="thumb" src="" alt="capa" /></div>
+      <div class="card-body">
+        <h3 class="title"></h3>
+        <p class="price"></p>
+        <div class="card-actions">
+          <button class="btn-small details">Detalhes</button>
+          <button class="btn-small add">Adicionar</button>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <!-- Cart drawer -->
+  <div id="cartDrawer" class="cart-drawer" aria-hidden="true">
+    <div class="cart-header">
+      <h3>Carrinho</h3>
+      <button id="closeCart" class="btn-small">Fechar</button>
+    </div>
+    <div id="cartItems" class="cart-items"></div>
+    <div class="cart-footer">
+      <div id="cartTotal">Total: 0</div>
+      <button id="checkoutBtn" class="btn">Finalizar compra</button>
+    </div>
+  </div>
+
+  <!-- Search drawer with categories -->
+  <div id="searchDrawer" class="search-drawer" aria-hidden="true">
+    <div class="search-drawer-header">
+      <h3>🔍 Filtrar por categoria</h3>
+      <button id="closeSearch" class="btn-small">Fechar</button>
+    </div>
+    <div class="search-drawer-filters">
+      <button class="filter-btn active" data-filter="all">Todos os resultados</button>
+      <button class="filter-btn" data-filter="action">Ação</button>
+      <button class="filter-btn" data-filter="rpg">RPG</button>
+      <button class="filter-btn" data-filter="strategy">Estratégia</button>
+      <button class="filter-btn" data-filter="puzzle">Puzzle</button>
+      <button class="filter-btn" data-filter="simulation">Simulação</button>
+    </div>
+    <div class="search-drawer-results">
+      <div id="searchResults" class="games-grid"></div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="container footer-inner">
+      <div>© 2026 cadA Store — Projeto TCC</div>
+      <div class="footer-links">Sobre • Contato • Política de Privacidade</div>
+    </div>
+  </footer>
+
+  <script>
+    async function fetchGames() {
+      const res = await fetch('/api/games');
+      const games = await res.json();
+      return games;
+    }
+
+    function getQueryParam(name) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+    }
+
+    function getCart() {
+      try { return JSON.parse(localStorage.getItem('cart') || '[]'); } catch(e){return []}
+    }
+
+    function saveCart(cart) { localStorage.setItem('cart', JSON.stringify(cart)); updateCartCount(); }
+
+    function updateCartCount(){ document.getElementById('cartCount').textContent = getCart().length }
+
+    function addToCart(item){ const cart = getCart(); cart.push(item); saveCart(cart); renderCart(); }
+
+    function removeFromCart(idx){ const cart = getCart(); cart.splice(idx,1); saveCart(cart); renderCart(); }
+
+    function renderCart(){
+      const container = document.getElementById('cartItems');
+      const cart = getCart();
+      container.innerHTML = '';
+      if(cart.length === 0) { document.getElementById('cartTotal').textContent = 'Carrinho vazio'; updateCartCount(); return; }
+      cart.forEach((c, i) => {
+        const el = document.createElement('div');
+        el.className = 'cart-row';
+        const thumb = (c.cover || 'https://via.placeholder.com/56x40?text=Img');
+        el.innerHTML = `<img src="${thumb}" alt="" class="cart-thumb" onerror="this.src='https://via.placeholder.com/56x40'"/><div class="cart-meta"><div class="cart-name">${c.name || 'Jogo'}</div><div class="cart-price">${c.price || 'Grátis'}</div></div><button class="btn-small remove" data-idx="${i}">Remover</button>`;
+        container.appendChild(el);
+      });
+      document.getElementById('cartTotal').textContent = `Total: ${cart.length} item(s)`;
+      updateCartCount();
+    }
+
+    function renderGames(list, containerId) {
+      const container = document.getElementById(containerId || 'games');
+      if(!container) return;
+      const tpl = document.getElementById('game-card');
+      container.innerHTML = '';
+      if(!list || list.length === 0) { container.innerHTML = '<p style="color:var(--muted); text-align:center; padding:20px;">Nenhum jogo encontrado</p>'; return; }
+      list.forEach(g => {
+        if(!g) return;  
+        const node = tpl.content.cloneNode(true);
+        const appid = g.appid || g.id || g.app_id || 0;
+        const cover = g.img || g.cover || `https://via.placeholder.com/360x200?text=Game`;
+        node.querySelector('.thumb').src = cover;
+        node.querySelector('.thumb').onerror = function() { this.src = 'https://via.placeholder.com/360x200'; };
+        node.querySelector('.title').textContent = g.name || g.title || ('Jogo ' + appid);
+        node.querySelector('.price').textContent = g.price || '';
+        node.querySelector('.details').addEventListener('click', async () => {
+          if(!appid) { alert('ID do jogo não disponível'); return; }
+          try {
+            const dres = await fetch(`/api/game/${appid}`);
+            const details = await dres.json();
+            alert(`${details.name}\n\n${details.description || 'Sem descrição'}`);
+          } catch(e) { alert('Erro ao carregar detalhes'); }
+        });
+        node.querySelector('.add').addEventListener('click', () => {
+          if(!appid) { alert('Erro: jogo sem ID'); return; }
+          addToCart({ appid, name: g.name || 'Jogo', cover, price: g.price });
+          alert(`${g.name || 'Jogo'} adicionado ao carrinho!`);
+        });
+        container.appendChild(node);
+      });
+    }
+
+    function renderAchievements(list) {
+      if(!list || !Array.isArray(list)) { console.warn('achievements inválido'); return; }
+      const container = document.getElementById('achievements-list');
+      if(!container) return;
+      container.innerHTML = '';
+      list.forEach(a => {
+        if(!a) return;
+        const el = document.createElement('div');
+        el.className = `achievement-card ${a.unlocked ? 'unlocked' : 'locked'}`;
+        el.title = a.desc || '';
+        el.innerHTML = `<div class="achievement-icon">${a.icon || '🎮'}</div><div class="achievement-info"><h4>${a.name || 'Conquista'}</h4><p>${a.desc || ''}</p></div>`;
+        container.appendChild(el);
+      });
+    }
+
+    function updateDiscountBadge(achievements) {
+      if(!achievements || !Array.isArray(achievements)) { console.warn('achievements inválido'); return; }
+      const unlockedCount = achievements.filter(a => a && a.unlocked).length;
+      const discountPercent = Math.min(unlockedCount * 5, 50);
+      const badgeEl = document.getElementById('discount-badge');
+      const textEl = document.getElementById('discount-text');
+      if(badgeEl) badgeEl.textContent = discountPercent + '%';
+      if(textEl) textEl.textContent = `Você desbloqueou ${unlockedCount}/${achievements.length} conquistas. ${discountPercent}% de desconto!`;
+    }
+
+    function renderGamesByCategory(list, category) {
+      renderGames(list, 'category-games');
+    }
+
+    (async () => {
+      const localSteam = localStorage.getItem('steamid');
+      const urlSteam = getQueryParam('steamid');
+      const steamid = urlSteam || localSteam;
+      if(urlSteam) localStorage.setItem('steamid', urlSteam);
+
+      const loginBtn = document.getElementById('loginBtn');
+      const cartBtn = document.getElementById('cartBtn');
+      const cartDrawer = document.getElementById('cartDrawer');
+      const closeCart = document.getElementById('closeCart');
+
+      function updateLoginUI(){
+        const sid = localStorage.getItem('steamid');
+        loginBtn.textContent = sid ? `Logout (${sid.slice(-6)})` : 'Entrar';
+      }
+
+      loginBtn.addEventListener('click', () => {
+        const sid = localStorage.getItem('steamid');
+        if(sid){ localStorage.removeItem('steamid'); updateLoginUI(); alert('Logout feito'); }
+        else { window.location.href = '/auth/steam/login'; }
+      });
+
+      cartBtn.addEventListener('click', () => { cartDrawer.style.display = 'block'; cartDrawer.setAttribute('aria-hidden','false'); renderCart(); });
+      closeCart.addEventListener('click', () => { cartDrawer.style.display = 'none'; cartDrawer.setAttribute('aria-hidden','true'); });
+      document.getElementById('checkoutBtn').addEventListener('click', () => { alert('Checkout (simulado) — itens: ' + JSON.stringify(getCart())); });
+
+      document.getElementById('cartItems').addEventListener('click', (e) => {
+        if(e.target.matches('.remove')){ removeFromCart(Number(e.target.dataset.idx)); }
+      });
+
+      updateLoginUI(); updateCartCount();
+
+      let games = [];
+      let trendingGames = [];
+      let recentGames = [];
+      let categoryGames = {};
+      
+      if(steamid){
+        try{
+          const res = await fetch(`/api/steam-games/${steamid}`);
+          const sg = await res.json();
+          if(!sg.error) games = sg.map(x => ({ appid: x.appid, name: x.name || (x.store && x.store.name), img: x.cover || (x.store && x.store.header_image), price: x.price }));
+        }catch(e){ console.warn('erro steam api', e); }
+      }
+      if(!games.length){ games = await fetchGames(); }
+
+      renderGames(games, 'games');
+      renderGames(games.slice(0,2), 'deals');
+
+      // Carregar seções adicionais
+      try {
+        const trendRes = await fetch('/api/trending');
+        trendingGames = await trendRes.json();
+        renderGames(trendingGames, 'trending-games');
+      } catch(e) { console.warn('erro trending', e); }
+
+      try {
+        const recentRes = await fetch('/api/recent');
+        recentGames = await recentRes.json();
+        renderGames(recentGames, 'recent-games');
+      } catch(e) { console.warn('erro recent', e); }
+
+      // Carregar conquistas
+      try {
+        const achievRes = await fetch('/api/achievements');
+        const achievements = await achievRes.json();
+        renderAchievements(achievements);
+        updateDiscountBadge(achievements);
+      } catch(e) { console.warn('erro achievements', e); }
+
+      // Carregar categorias
+      try {
+        const catRes = await fetch('/api/categories');
+        categoryGames = await catRes.json();
+        window.gamesByCategory = categoryGames;
+        renderGamesByCategory(categoryGames.all, 'all');
+        
+        // Event listeners para botões de categoria
+        document.querySelectorAll('.category-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            const cat = e.target.dataset.category;
+            renderGamesByCategory(categoryGames[cat] || [], cat);
+          });
+        });
+      } catch(e) { console.warn('erro categories', e); }
+
+      // Busca global avançada
+      // Armazenar globalmente para busca
+      window.allGamesList = games;
+      window.allTrendingGames = trendingGames;
+      window.allRecentGames = recentGames;
+      window.allCategoryGames = categoryGames;
+      window.currentSearchQuery = '';
+      window.currentSearchFilter = 'all';
+      
+      const searchInput = document.getElementById('search');
+      const searchDrawer = document.getElementById('searchDrawer');
+      const closeSearchBtn = document.getElementById('closeSearch');
+      const searchResults = document.getElementById('searchResults');
+      
+      searchInput.addEventListener('focus', () => {
+        if(searchInput.value.trim()) {
+          searchDrawer.setAttribute('aria-hidden', 'false');
+          performSearch(searchInput.value);
+        }
+      });
+      
+      searchInput.addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase().trim();
+        window.currentSearchQuery = q;
+        
+        if(!q) {
+          searchDrawer.setAttribute('aria-hidden', 'true');
+          renderGames(games, 'games');
+          renderGames(trendingGames, 'trending-games');
+          renderGames(recentGames, 'recent-games');
+          renderGames(categoryGames.all || [], 'category-games');
+          return;
+        }
+        
+        searchDrawer.setAttribute('aria-hidden', 'false');
+        performSearch(q);
+      });
+      
+      closeSearchBtn.addEventListener('click', () => {
+        searchDrawer.setAttribute('aria-hidden', 'true');
+        searchInput.value = '';
+      });
+      
+      // Filtros de categoria na busca
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+          e.target.classList.add('active');
+          window.currentSearchFilter = e.target.dataset.filter;
+          performSearch(window.currentSearchQuery);
+        });
+      });
+      
+      function performSearch(q) {
+        const allGames = [
+          ...games,
+          ...trendingGames,
+          ...recentGames,
+          ...(categoryGames.all || [])
+        ];
+        
+        // Remover duplicatas por appid
+        const seen = new Set();
+        const unique = allGames.filter(g => {
+          const id = g.appid || g.id || g.app_id;
+          if(seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        });
+        
+        let results = unique.filter(g => (g.name||'').toLowerCase().includes(q));
+        
+        // Aplicar filtro de categoria se necessário
+        if(window.currentSearchFilter !== 'all' && categoryGames[window.currentSearchFilter]) {
+          const catGames = categoryGames[window.currentSearchFilter];
+          results = results.filter(r => catGames.some(cg => (cg.appid || cg.id) === (r.appid || r.id)));
+        }
+        
+        renderGames(results, 'searchResults');
+      }
+    })();
+  </script>
+</body>
+</html>
 
